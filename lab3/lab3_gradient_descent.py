@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Настройка шрифтов и стилей графиков
 plt.rcParams['font.sans-serif'] = 'DejaVu Sans'
 plt.rcParams['axes.edgecolor'] = '#cccccc'
 plt.rcParams['axes.linewidth'] = 0.8
@@ -10,40 +9,15 @@ plt.rcParams['grid.color'] = '#e0e0e0'
 plt.rcParams['grid.linestyle'] = '--'
 plt.rcParams['grid.alpha'] = 0.7
 
-def render_terminal_output(text, filename, width=8.5, line_height=0.22, font_size=9.0):
-    """Генерация моноширинного изображения терминального вывода (в стиле отчетов БГУИР)"""
-    lines = text.strip().split('\n')
-    height = max(1.0, len(lines) * line_height + 0.4)
-    fig, ax = plt.subplots(figsize=(width, height), dpi=300)
-    ax.axis('off')
-    fig.patch.set_facecolor('white')
-    
-    y_start = 0.95
-    dy = 0.90 / max(len(lines), 1)
-    
-    for i, line in enumerate(lines):
-        ax.text(0.02, y_start - i * dy, line, transform=ax.transAxes,
-                fontsize=font_size, fontfamily='monospace', color='#111111',
-                verticalalignment='top')
-                
-    plt.tight_layout()
-    plt.savefig(filename, dpi=300, facecolor='white', bbox_inches='tight')
-    plt.close()
-
-# =============================================================
-# 1. ЗАГРУЗКА И ПОДГОТОВКА ДАННЫХ
-# =============================================================
 csv_path = "CarPrice_Assignment.csv"
 df = pd.read_csv(csv_path)
 
-# Выбор признаков: 3 признака (двигатель, масса, мощность) и целевой признак (цена)
 feature_cols = ['enginesize', 'curbweight', 'horsepower']
 target_col = 'price'
 
 X_raw = df[feature_cols].values
 y_raw = df[target_col].values
 
-# Стандартизация признаков и целевой переменной
 X_mean = np.mean(X_raw, axis=0)
 X_std = np.std(X_raw, axis=0)
 X_scaled = (X_raw - X_mean) / X_std
@@ -52,12 +26,10 @@ y_mean = np.mean(y_raw)
 y_std = np.std(y_raw)
 y_scaled = (y_raw - y_mean) / y_std
 
-# Матрица плана с добавлением единичного вектора для bias (w0)
 n_samples = X_scaled.shape[0]
 X_design = np.c_[np.ones(n_samples), X_scaled]
 feature_names = ['bias (w0)', 'enginesize (w1)', 'curbweight (w2)', 'horsepower (w3)']
 
-# Аналитический МНК
 w_ols = np.linalg.inv(X_design.T @ X_design) @ X_design.T @ y_scaled
 mse_ols = np.mean((X_design @ w_ols - y_scaled) ** 2)
 
@@ -78,11 +50,7 @@ out_text_1 = (
     f"  Минимальное MSE (МНК):  {mse_ols:10.5f}"
 )
 print(out_text_1)
-render_terminal_output(out_text_1, "fig_output_data.png", width=8.5, font_size=8.8)
 
-# =============================================================
-# 2. ПАКЕТНЫЙ ГРАДИЕНТНЫЙ СПУСК (GD)
-# =============================================================
 def compute_mse(X, y, w):
     return np.mean((X @ w - y) ** 2)
 
@@ -121,11 +89,7 @@ out_text_2 = (
     f"Максимальная разность с МНК: {np.max(np.abs(w_gd - w_ols)):.2e}"
 )
 print("\n" + out_text_2)
-render_terminal_output(out_text_2, "fig_output_gd.png", width=8.5, font_size=9.0)
 
-# =============================================================
-# 3. ЭКСПЕРИМЕНТЫ СО СКОРОСТЬЮ ОБУЧЕНИЯ
-# =============================================================
 Hessian = (2.0 / n_samples) * (X_design.T @ X_design)
 max_eigenval = np.max(np.linalg.eigvalsh(Hessian))
 lr_crit = 2.0 / max_eigenval
@@ -163,9 +127,6 @@ plt.tight_layout()
 plt.savefig("fig_learning_rates.png", dpi=300)
 plt.close()
 
-# =============================================================
-# 4. СТОХАСТИЧЕСКИЙ ГРАДИЕНТНЫЙ СПУСК (SGD)
-# =============================================================
 def stochastic_gradient_descent(X, y, lr=0.015, max_iter=1200, seed=42):
     np.random.seed(seed)
     n, m = X.shape
@@ -203,15 +164,10 @@ out_text_3 = (
     f"Разница MSE между SGD и оптимумом МНК: {mse_hist_sgd[-1] - mse_ols:.5f}"
 )
 print("\n" + out_text_3)
-render_terminal_output(out_text_3, "fig_output_sgd.png", width=8.5, font_size=9.0)
 
-# =============================================================
-# 5. СРАВНЕНИЕ СХОДИМОСТИ GD И SGD
-# =============================================================
 plt.figure(figsize=(9, 5.2), dpi=300)
 n_cmp = 350
 
-# Для честного сравнения отображаем первые n_cmp итераций
 plt.plot(range(min(n_cmp, len(mse_hist_gd))), mse_hist_gd[:n_cmp], 
          label='Пакетный градиентный спуск (GD)', color='#1f77b4', lw=2.2)
 plt.plot(range(n_cmp), mse_hist_sgd[:n_cmp], 
@@ -230,9 +186,6 @@ plt.tight_layout()
 plt.savefig("fig_gd_vs_sgd.png", dpi=300)
 plt.close()
 
-# =============================================================
-# 6. L2-РЕГУЛЯРИЗАЦИЯ (ДЛЯ ВАРИАНТА 23)
-# =============================================================
 lambdas = np.logspace(-3, 3, 20)
 
 def gradient_descent_l2(X, y, lmb, max_iter=3000, eps=1e-6):
@@ -242,7 +195,7 @@ def gradient_descent_l2(X, y, lmb, max_iter=3000, eps=1e-6):
     
     for it in range(max_iter):
         w_reg = w.copy()
-        w_reg[0] = 0.0  # смещение w0 не регуляризируется
+        w_reg[0] = 0.0
         grad = (2.0 / n) * (X.T @ (X @ w - y)) + 2.0 * lmb * w_reg
         w_new = w - lr * grad
         if np.linalg.norm(w_new - w) < eps:
@@ -266,7 +219,7 @@ weights_l2 = np.array(weights_l2)
 analytical_l2 = np.array(analytical_l2)
 
 out_text_4 = (
-    f"--- 4. L2-РЕГУЛЯРИЗАЦИЯ (RIDGE) ДЛЯ ВАРИАНТА 23 ---\n"
+    f"--- 4. L2-РЕГУЛЯРИЗАЦИЯ (RIDGE) ---\n"
     f"Диапазон 20 значений lambda: от {lambdas[0]:.3f} до {lambdas[-1]:.1f}\n"
     f"Максимальное расхождение с точным аналитическим Ridge: {np.max(np.abs(weights_l2 - analytical_l2)):.2e}\n\n"
     f"Выборка значений весов при различных коэффициентах lambda:\n"
@@ -280,9 +233,7 @@ for idx in indices_sample:
     out_text_4 += f"{lmb_val:10.4f} | {w_row[0]:10.5f} | {w_row[1]:12.5f} | {w_row[2]:12.5f} | {w_row[3]:12.5f}\n"
 
 print("\n" + out_text_4)
-render_terminal_output(out_text_4, "fig_output_l2.png", width=8.5, font_size=8.8)
 
-# График траекторий весов
 plt.figure(figsize=(9.2, 5.6), dpi=300)
 colors_w = ['#7f7f7f', '#1f77b4', '#2ca02c', '#d62728']
 markers_w = ['o', 's', '^', 'v']
@@ -305,12 +256,3 @@ plt.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize=10)
 plt.tight_layout()
 plt.savefig("fig_l2_regularization.png", dpi=300)
 plt.close()
-
-print("\nВСЕ 7 ИЗОБРАЖЕНИЙ УСПЕШНО СФОРМИРОВАНЫ:")
-print("  1. fig_output_data.png")
-print("  2. fig_output_gd.png")
-print("  3. fig_learning_rates.png")
-print("  4. fig_output_sgd.png")
-print("  5. fig_gd_vs_sgd.png")
-print("  6. fig_output_l2.png")
-print("  7. fig_l2_regularization.png")
