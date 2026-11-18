@@ -54,10 +54,13 @@ venv.bak/
 *.gz
 *.rar
 *.7z
+data/
+lab*/data/
 
 # Documents & reports
 *.pdf
 *.docx
+*.txt
 
 # Images
 *.png
